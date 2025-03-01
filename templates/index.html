@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Indian Stock Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="flex h-screen bg-gray-900 text-white">
+    <!-- Sidebar -->
+    <aside
+      class="w-64 bg-black bg-opacity-40 p-5 flex flex-col justify-between"
+    >
+      <div>
+        <h1 class="text-2xl font-bold text-blue-400 mb-6">Stock Dashboard</h1>
+
+        <nav class="flex flex-col space-y-4">
+          <a
+            href="#"
+            class="px-3 py-2 rounded-md bg-gray-800 transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-lg font-bold"
+            >🏠 Home</a
+          >
+          <a
+            href="#"
+            class="px-3 py-2 rounded-md bg-gray-800 transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-lg"
+            >📊 Top Stocks</a
+          >
+          <a
+            href="#"
+            class="px-3 py-2 rounded-md bg-gray-800 transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-lg"
+            >💹 Market Trends</a
+          >
+        </nav>
+      </div>
+
+      <!-- Chatbot & Group Chat Buttons -->
+      <div class="flex flex-col space-y-3 mt-4">
+        <button
+          onclick="showComingSoon()"
+          class="px-3 py-2 bg-purple-500 rounded-md text-center font-bold transition transform hover:scale-105 hover:shadow-lg"
+        >
+          💬 Chat with Bot
+        </button>
+        <button
+          onclick="showComingSoon()"
+          class="px-3 py-2 bg-yellow-500 rounded-md text-center font-bold transition transform hover:scale-105 hover:shadow-lg"
+        >
+          👥 Group Chat
+        </button>
+      </div>
+
+      <!-- Login & Signup Buttons at Bottom -->
+      <div class="flex flex-col space-y-3">
+        <a
+          href="#"
+          class="px-3 py-2 bg-green-500 rounded-md text-center font-bold transition transform hover:scale-105 hover:shadow-lg"
+          >Login</a
+        >
+        <a
+          href="#"
+          class="px-3 py-2 bg-blue-500 rounded-md text-center font-bold transition transform hover:scale-105 hover:shadow-lg"
+          >Sign Up</a
+        >
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-8">
+      <h2 class="text-3xl font-bold text-blue-400">Live Indian Stock Prices</h2>
+
+      <!-- Stock Cards -->
+      <div
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6"
+        id="stock-container"
+      >
+        <!-- Stocks will be added dynamically here -->
+      </div>
+    </main>
+
+    <script>
+      function showComingSoon() {
+        const overlay = document.createElement("div");
+        overlay.className =
+          "fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center text-white text-3xl font-bold";
+        overlay.innerText = "Coming Soon";
+        overlay.onclick = () => document.body.removeChild(overlay);
+        document.body.appendChild(overlay);
+      }
+
+      async function fetchStockData() {
+        const stockContainer = document.getElementById("stock-container");
+        stockContainer.innerHTML = "";
+
+        try {
+          const response = await fetch("/stocks");
+          const stocks = await response.json();
+
+          stocks.forEach((stock) => {
+            const colorClass =
+              stock.change >= 0 ? "text-green-400" : "text-red-400";
+
+            const stockCard = `
+                        <div class="bg-gray-800 p-6 rounded-xl shadow-lg transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-2xl">
+                            <h3 class="text-xl font-bold">${stock.symbol}</h3>
+                            <p class="mt-2 text-2xl font-semibold">₹${
+                              stock.price
+                            }</p>
+                            <p class="mt-1 text-lg ${colorClass}">${
+              stock.change >= 0 ? "▲" : "▼"
+            } ${stock.change} (${stock.percent}%)</p>
+                        </div>
+                    `;
+            stockContainer.innerHTML += stockCard;
+          });
+        } catch (error) {
+          console.error("Error fetching stock data:", error);
+        }
+      }
+
+      fetchStockData();
+      setInterval(fetchStockData, 5000); // Update stock prices every 5 seconds
+    </script>
+  </body>
+</html>
