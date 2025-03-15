@@ -6,36 +6,35 @@
     <title>Indian Stock Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
   </head>
-  <body class="flex h-screen bg-gray-900 text-white">
-    <!-- Sidebar -->
+  <body class="bg-gray-900 text-white flex">
+    <!-- 📌 Sidebar -->
     <aside
-      class="w-64 bg-black bg-opacity-40 p-5 flex flex-col justify-between"
+      id="sidebar"
+      class="fixed inset-y-0 left-0 w-64 bg-black bg-opacity-40 p-5 flex flex-col justify-between transform -translate-x-full lg:translate-x-0 lg:bg-opacity-100 transition-transform duration-300 z-50"
     >
-      <div>
-        <h1 class="text-2xl font-bold text-blue-400 mb-6">Stock Dashboard</h1>
-        <nav class="flex flex-col space-y-4">
-          <a
-            href="#"
-            class="px-3 py-2 rounded-md bg-gray-800 transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-lg font-bold"
-            >🏠 Home</a
-          >
-          <a
-            href="#"
-            class="px-3 py-2 rounded-md bg-gray-800 transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-lg"
-            >📊 Top Stocks</a
-          >
-          <a
-            href="#"
-            class="px-3 py-2 rounded-md bg-gray-800 transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-lg"
-            >💹 Market Trends</a
-          >
-        </nav>
-      </div>
+      <h1 class="text-2xl font-bold text-blue-400 m-8">Dashboard</h1>
+      <nav class="flex flex-col space-y-4">
+        <a
+          href="#"
+          class="px-3 py-2 rounded-md bg-gray-800 hover:bg-gray-700 hover:scale-105 font-bold"
+          >🏠 Home</a
+        >
+        <a
+          href="#"
+          class="px-3 py-2 rounded-md bg-gray-800 hover:bg-gray-700 hover:scale-105"
+          >📊 Top Stocks</a
+        >
+        <a
+          href="#"
+          class="px-3 py-2 rounded-md bg-gray-800 hover:bg-gray-700 hover:scale-105"
+          >💹 Market Trends</a
+        >
+      </nav>
 
       <!-- Chatbot Button -->
       <button
         onclick="toggleChat()"
-        class="px-3 py-2 bg-purple-500 rounded-md text-center font-bold transition transform hover:scale-105 hover:shadow-lg"
+        class="px-3 py-2 bg-purple-500 rounded-md font-bold transition hover:scale-105"
       >
         💬 Chat with Bot
       </button>
@@ -44,27 +43,40 @@
       <div class="flex flex-col space-y-3">
         <a
           href="#"
-          class="px-3 py-2 bg-green-500 rounded-md text-center font-bold transition transform hover:scale-105 hover:shadow-lg"
+          class="px-3 py-2 bg-green-500 rounded-md text-center font-bold hover:scale-105"
           >Login</a
         >
         <a
           href="#"
-          class="px-3 py-2 bg-blue-500 rounded-md text-center font-bold transition transform hover:scale-105 hover:shadow-lg"
+          class="px-3 py-2 bg-blue-500 rounded-md text-center font-bold hover:scale-105"
           >Sign Up</a
         >
       </div>
     </aside>
 
-    <!-- Main Content -->
-    <main class="flex-1 p-8">
-      <h2 class="text-3xl font-bold text-blue-400">Live Indian Stock Prices</h2>
+    <!-- 📌 Hamburger Menu Button -->
+    <button
+      id="menu-btn"
+      onclick="toggleSidebar()"
+      class="lg:hidden fixed top-4 left-4 bg-blue-500 px-4 py-2 rounded-md z-50"
+    >
+      ☰
+    </button>
+
+    <!-- 📌 Main Content -->
+    <main class="flex-1 p-8 lg:ml-64 transition-all duration-300">
+      <h2 class="text-3xl font-bold text-blue-400 m-8">
+        Live Indian Stock Prices
+      </h2>
       <div
-        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6"
         id="stock-container"
-      ></div>
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6"
+      >
+        <!-- Stocks will be inserted here -->
+      </div>
     </main>
 
-    <!-- Floating Chatbox -->
+    <!-- 📌 Chatbox -->
     <div
       id="chat-container"
       class="hidden fixed bottom-8 right-8 bg-gray-800 p-4 rounded-lg shadow-xl w-80"
@@ -88,7 +100,7 @@
       </button>
     </div>
 
-    <!-- Chatbot Script -->
+    <!-- 📌 JavaScript -->
     <script>
       function toggleChat() {
         document.getElementById("chat-container").classList.toggle("hidden");
@@ -126,7 +138,7 @@
             const colorClass =
               stock.change >= 0 ? "text-green-400" : "text-red-400";
             const stockCard = `
-                        <div class="bg-gray-800 p-6 rounded-xl shadow-lg transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-2xl">
+                        <div class="bg-gray-800 p-6 rounded-xl shadow-lg transition transform hover:bg-gray-700 hover:scale-105">
                             <h3 class="text-xl font-bold">${stock.symbol}</h3>
                             <p class="mt-2 text-2xl font-semibold">₹${
                               stock.price
@@ -145,6 +157,18 @@
 
       fetchStockData();
       setInterval(fetchStockData, 5000);
+
+      function toggleSidebar() {
+        const sidebar = document.getElementById("sidebar");
+        sidebar.classList.toggle("-translate-x-full");
+
+        // When sidebar is open, set full opacity
+        if (!sidebar.classList.contains("-translate-x-full")) {
+          sidebar.classList.add("bg-opacity-100");
+        } else {
+          sidebar.classList.remove("bg-opacity-100");
+        }
+      }
     </script>
   </body>
 </html>
