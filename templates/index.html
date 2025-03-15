@@ -128,34 +128,52 @@
 
       async function fetchStockData() {
         const stockContainer = document.getElementById("stock-container");
-        stockContainer.innerHTML = "";
 
         try {
           const response = await fetch("/stocks");
           const stocks = await response.json();
 
           stocks.forEach((stock) => {
-            const colorClass =
-              stock.change >= 0 ? "text-green-400" : "text-red-400";
-            const stockCard = `
-                        <div class="bg-gray-800 p-6 rounded-xl shadow-lg transition transform hover:bg-gray-700 hover:scale-105">
-                            <h3 class="text-xl font-bold">${stock.symbol}</h3>
-                            <p class="mt-2 text-2xl font-semibold">₹${
-                              stock.price
-                            }</p>
-                            <p class="mt-1 text-lg ${colorClass}">${
-              stock.change >= 0 ? "▲" : "▼"
-            } ${stock.change} (${stock.percent}%)</p>
-                        </div>
-                    `;
-            stockContainer.innerHTML += stockCard;
+            const stockId = `stock-${stock.symbol}`;
+            let stockElement = document.getElementById(stockId);
+
+            if (!stockElement) {
+              // Create a new stock card if it doesn't exist
+              const stockCard = document.createElement("div");
+              stockCard.id = stockId;
+              stockCard.className =
+                "bg-gray-800 p-6 rounded-xl shadow-lg transition transform hover:bg-gray-700 hover:scale-105";
+              stockCard.innerHTML = `
+                    <h3 class="text-xl font-bold">${stock.symbol}</h3>
+                    <p class="mt-2 text-2xl font-semibold price-text" id="price-${
+                      stock.symbol
+                    }">₹${stock.price}</p>
+                    <p class="mt-1 text-lg text-gray-400">${
+                      stock.change >= 0 ? "▲" : "▼"
+                    } ${stock.change} (${stock.percent}%)</p>
+                `;
+              stockContainer.appendChild(stockCard);
+            } else {
+              // Animate only the price update
+              const priceElement = document.getElementById(
+                `price-${stock.symbol}`
+              );
+              priceElement.style.opacity = 0; // Fade out
+              setTimeout(() => {
+                priceElement.innerHTML = `₹${stock.price}`;
+                priceElement.style.opacity = 1; // Fade in
+              }, 500); // 0.5s delay
+            }
           });
         } catch (error) {
           console.error("Error fetching stock data:", error);
         }
       }
 
+      // Initial fetch
       fetchStockData();
+
+      // Update every 5 seconds
       setInterval(fetchStockData, 5000);
 
       function toggleSidebar() {

@@ -1,13 +1,11 @@
 from flask import Flask, render_template, jsonify, request
 # import openai
 import yfinance as yf
-
-
-
-
-
+from flask_pymongo import PyMongo
 
 app = Flask(__name__)
+app.config["MONGO_URI"] = "mongodb://localhost:27017/myDatabase"
+db = PyMongo(app).db
 
 
 
@@ -16,6 +14,8 @@ INDIAN_STOCKS = [
     "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS",
     "SBIN.NS", "HINDUNILVR.NS", "LT.NS", "BAJFINANCE.NS"
 ]
+
+
 
 # Function to fetch stock data
 def get_stock_data():
