@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Indian Stock Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body class="bg-gray-900 text-white flex">
+</head>
+<body class="bg-gray-900 text-white flex">
     <!-- 📌 Sidebar -->
     <aside
       id="sidebar"
@@ -41,16 +41,13 @@
 
       <!-- Login & Signup -->
       <div class="flex flex-col space-y-3">
-        <a
-          href="#"
-          class="px-3 py-2 bg-green-500 rounded-md text-center font-bold hover:scale-105"
-          >Login</a
-        >
-        <a
-          href="#"
-          class="px-3 py-2 bg-blue-500 rounded-md text-center font-bold hover:scale-105"
-          >Sign Up</a
-        >
+        {% if current_user.is_authenticated %}
+          <p class="text-white">Welcome, {{ current_user.username }}</p>
+          <a href="{{ url_for('logout') }}" class="px-3 py-2 bg-red-500 rounded-md text-center font-bold hover:scale-105">Logout</a>
+        {% else %}
+          <a href="{{ url_for('login') }}" class="px-3 py-2 bg-green-500 rounded-md text-center font-bold hover:scale-105">Login</a>
+          <a href="{{ url_for('register') }}" class="px-3 py-2 bg-blue-500 rounded-md text-center font-bold hover:scale-105">Sign Up</a>
+        {% endif %}
       </div>
     </aside>
 
