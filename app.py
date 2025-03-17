@@ -1,32 +1,21 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_wtf.csrf import CSRFProtect  # Add this import
-import sqlite3
+from flask_wtf.csrf import CSRFProtect
+from pymongo import MongoClient
+from bson.objectid import ObjectId  # Import ObjectId
 import yfinance as yf
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
 
 # Initialize Flask-WTF for CSRF protection
-csrf = CSRFProtect(app)  # Add this line
+csrf = CSRFProtect(app)
 
-# SQLite3 Database Setup
-DATABASE = 'database.db'
-
-def init_db():
-    with sqlite3.connect(DATABASE) as conn:
-        cursor = conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL
-            )
-        ''')
-        conn.commit()
-
-init_db()
+# MongoDB Setup
+client = MongoClient('mongodb://localhost:27017/')
+db = client['stock_tracker']
+users_collection = db['users']
 
 # Flask-Login Setup
 login_manager = LoginManager(app)
@@ -34,17 +23,15 @@ login_manager.login_view = 'login'
 
 class User(UserMixin):
     def __init__(self, user_id, username):
-        self.id = user_id
+        self.id = user_id  # user_id is now a string
         self.username = username
 
 @login_manager.user_loader
 def load_user(user_id):
-    with sqlite3.connect(DATABASE) as conn:
-        cursor = conn.cursor()
-        cursor.execute('SELECT id, username FROM users WHERE id = ?', (user_id,))
-        user_data = cursor.fetchone()
-        if user_data:
-            return User(user_data[0], user_data[1])
+    # Convert the string user_id back to ObjectId for MongoDB query
+    user_data = users_collection.find_one({'_id': ObjectId(user_id)})
+    if user_data:
+        return User(str(user_data['_id']), user_data['username'])  # Convert ObjectId to string
     return None
 
 # Routes
@@ -54,20 +41,16 @@ def register():
         username = request.form['username']
         password = request.form['password']
 
-        with sqlite3.connect(DATABASE) as conn:
-            cursor = conn.cursor()
-            cursor.execute('SELECT id FROM users WHERE username = ?', (username,))
-            existing_user = cursor.fetchone()
+        existing_user = users_collection.find_one({'username': username})
 
-            if existing_user:
-                flash('Username already exists', 'danger')
-                return redirect(url_for('register'))
+        if existing_user:
+            flash('Username already exists', 'danger')
+            return redirect(url_for('register'))
 
-            hashed_password = generate_password_hash(password)
-            cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hashed_password))
-            conn.commit()
-            flash('Account created successfully!', 'success')
-            return redirect(url_for('login'))
+        hashed_password = generate_password_hash(password)
+        user_id = users_collection.insert_one({'username': username, 'password': hashed_password}).inserted_id
+        flash('Account created successfully!', 'success')
+        return redirect(url_for('login'))
 
     return render_template('register.html')
 
@@ -77,17 +60,15 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
-        with sqlite3.connect(DATABASE) as conn:
-            cursor = conn.cursor()
-            cursor.execute('SELECT id, username, password FROM users WHERE username = ?', (username,))
-            user_data = cursor.fetchone()
+        user_data = users_collection.find_one({'username': username})
 
-            if user_data and check_password_hash(user_data[2], password):
-                user = User(user_data[0], user_data[1])
-                login_user(user)
-                return redirect(url_for('index'))
-            else:
-                flash('Login Unsuccessful. Please check username and password', 'danger')
+        if user_data and check_password_hash(user_data['password'], password):
+            # Convert ObjectId to string for Flask-Login
+            user = User(str(user_data['_id']), user_data['username'])
+            login_user(user)
+            return redirect(url_for('index'))
+        else:
+            flash('Login Unsuccessful. Please check username and password', 'danger')
 
     return render_template('login.html')
 
