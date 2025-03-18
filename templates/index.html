@@ -1,79 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Indian Stock Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-900 text-white flex">
-    <!-- 📌 Sidebar -->
+  </head>
+  <body class="flex h-screen bg-gray-900 text-white">
+    <!-- Sidebar -->
     <aside
-      id="sidebar"
-      class="fixed inset-y-0 left-0 w-64 bg-black bg-opacity-40 p-5 flex flex-col justify-between transform -translate-x-full lg:translate-x-0 lg:bg-opacity-100 transition-transform duration-300 z-50"
+      class="w-64 bg-black bg-opacity-40 p-5 flex flex-col justify-between"
     >
-      <h1 class="text-2xl font-bold text-blue-400 m-8">Dashboard</h1>
-      <nav class="flex flex-col space-y-4">
-        <a
-          href="#"
-          class="px-3 py-2 rounded-md bg-gray-800 hover:bg-gray-700 hover:scale-105 font-bold"
-          >🏠 Home</a
-        >
-        <a
-          href="#"
-          class="px-3 py-2 rounded-md bg-gray-800 hover:bg-gray-700 hover:scale-105"
-          >📊 Top Stocks</a
-        >
-        <a
-          href="#"
-          class="px-3 py-2 rounded-md bg-gray-800 hover:bg-gray-700 hover:scale-105"
-          >💹 Market Trends</a
-        >
-      </nav>
+      <div>
+        <h1 class="text-2xl font-bold text-blue-400 mb-6">Stock Dashboard</h1>
+        <nav class="flex flex-col space-y-4">
+          <a
+            href="#"
+            class="px-3 py-2 rounded-md bg-gray-800 transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-lg font-bold"
+            >🏠 Home</a
+          >
+          <a
+            href="#"
+            class="px-3 py-2 rounded-md bg-gray-800 transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-lg"
+            >📊 Top Stocks</a
+          >
+          <a
+            href="#"
+            class="px-3 py-2 rounded-md bg-gray-800 transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-lg"
+            >💹 Market Trends</a
+          >
+        </nav>
+      </div>
 
       <!-- Chatbot Button -->
       <button
         onclick="toggleChat()"
-        class="px-3 py-2 bg-purple-500 rounded-md font-bold transition hover:scale-105"
+        class="px-3 py-2 bg-purple-500 rounded-md text-center font-bold transition transform hover:scale-105 hover:shadow-lg"
       >
         💬 Chat with Bot
       </button>
 
       <!-- Login & Signup -->
       <div class="flex flex-col space-y-3">
-        {% if current_user.is_authenticated %}
-          <p class="text-white">Welcome, {{ current_user.username }}</p>
-          <a href="{{ url_for('logout') }}" class="px-3 py-2 bg-red-500 rounded-md text-center font-bold hover:scale-105">Logout</a>
-        {% else %}
-          <a href="{{ url_for('login') }}" class="px-3 py-2 bg-green-500 rounded-md text-center font-bold hover:scale-105">Login</a>
-          <a href="{{ url_for('register') }}" class="px-3 py-2 bg-blue-500 rounded-md text-center font-bold hover:scale-105">Sign Up</a>
-        {% endif %}
+        <a
+          href="#"
+          class="px-3 py-2 bg-green-500 rounded-md text-center font-bold transition transform hover:scale-105 hover:shadow-lg"
+          >Login</a
+        >
+        <a
+          href="#"
+          class="px-3 py-2 bg-blue-500 rounded-md text-center font-bold transition transform hover:scale-105 hover:shadow-lg"
+          >Sign Up</a
+        >
       </div>
     </aside>
 
-    <!-- 📌 Hamburger Menu Button -->
-    <button
-      id="menu-btn"
-      onclick="toggleSidebar()"
-      class="lg:hidden fixed top-4 left-4 bg-blue-500 px-4 py-2 rounded-md z-50"
-    >
-      ☰
-    </button>
-
-    <!-- 📌 Main Content -->
-    <main class="flex-1 p-8 lg:ml-64 transition-all duration-300">
-      <h2 class="text-3xl font-bold text-blue-400 m-8">
-        Live Indian Stock Prices
-      </h2>
+    <!-- Main Content -->
+    <main class="flex-1 p-8">
+      <h2 class="text-3xl font-bold text-blue-400">Live Indian Stock Prices</h2>
       <div
-        id="stock-container"
         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6"
-      >
-        <!-- Stocks will be inserted here -->
-      </div>
+        id="stock-container"
+      ></div>
     </main>
 
-    <!-- 📌 Chatbox -->
+    <!-- Floating Chatbox -->
     <div
       id="chat-container"
       class="hidden fixed bottom-8 right-8 bg-gray-800 p-4 rounded-lg shadow-xl w-80"
@@ -97,7 +88,7 @@
       </button>
     </div>
 
-    <!-- 📌 JavaScript -->
+    <!-- Chatbot Script -->
     <script>
       function toggleChat() {
         document.getElementById("chat-container").classList.toggle("hidden");
@@ -125,65 +116,35 @@
 
       async function fetchStockData() {
         const stockContainer = document.getElementById("stock-container");
+        stockContainer.innerHTML = "";
 
         try {
           const response = await fetch("/stocks");
           const stocks = await response.json();
 
           stocks.forEach((stock) => {
-            const stockId = `stock-${stock.symbol}`;
-            let stockElement = document.getElementById(stockId);
-
-            if (!stockElement) {
-              // Create a new stock card if it doesn't exist
-              const stockCard = document.createElement("div");
-              stockCard.id = stockId;
-              stockCard.className =
-                "bg-gray-800 p-6 rounded-xl shadow-lg transition transform hover:bg-gray-700 hover:scale-105";
-              stockCard.innerHTML = `
-                    <h3 class="text-xl font-bold">${stock.symbol}</h3>
-                    <p class="mt-2 text-2xl font-semibold price-text" id="price-${
-                      stock.symbol
-                    }">₹${stock.price}</p>
-                    <p class="mt-1 text-lg text-gray-400">${
-                      stock.change >= 0 ? "▲" : "▼"
-                    } ${stock.change} (${stock.percent}%)</p>
-                `;
-              stockContainer.appendChild(stockCard);
-            } else {
-              // Animate only the price update
-              const priceElement = document.getElementById(
-                `price-${stock.symbol}`
-              );
-              priceElement.style.opacity = 0; // Fade out
-              setTimeout(() => {
-                priceElement.innerHTML = `₹${stock.price}`;
-                priceElement.style.opacity = 1; // Fade in
-              }, 500); // 0.5s delay
-            }
+            const colorClass =
+              stock.change >= 0 ? "text-green-400" : "text-red-400";
+            const stockCard = `
+                        <div class="bg-gray-800 p-6 rounded-xl shadow-lg transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-2xl">
+                            <h3 class="text-xl font-bold">${stock.symbol}</h3>
+                            <p class="mt-2 text-2xl font-semibold">₹${
+                              stock.price
+                            }</p>
+                            <p class="mt-1 text-lg ${colorClass}">${
+              stock.change >= 0 ? "▲" : "▼"
+            } ${stock.change} (${stock.percent}%)</p>
+                        </div>
+                    `;
+            stockContainer.innerHTML += stockCard;
           });
         } catch (error) {
           console.error("Error fetching stock data:", error);
         }
       }
 
-      // Initial fetch
       fetchStockData();
-
-      // Update every 5 seconds
       setInterval(fetchStockData, 5000);
-
-      function toggleSidebar() {
-        const sidebar = document.getElementById("sidebar");
-        sidebar.classList.toggle("-translate-x-full");
-
-        // When sidebar is open, set full opacity
-        if (!sidebar.classList.contains("-translate-x-full")) {
-          sidebar.classList.add("bg-opacity-100");
-        } else {
-          sidebar.classList.remove("bg-opacity-100");
-        }
-      }
     </script>
   </body>
 </html>
