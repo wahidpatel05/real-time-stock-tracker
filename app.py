@@ -1,99 +1,147 @@
-from flask import Flask, render_template, jsonify, request
-import openai
+from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_wtf.csrf import CSRFProtect
 import yfinance as yf
 from dotenv import load_dotenv
 import os
+from pymongo import MongoClient
+from werkzeug.security import generate_password_hash, check_password_hash
+from bson.objectid import ObjectId
+from flask_socketio import SocketIO, send
 
 load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY")
-
 
 app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY")
 
-# OpenAI API Key
-OPENAI_API_KEY = ""
+# Enable CSRF protection
+csrf = CSRFProtect(app)
+
+# MongoDB setup
+client = MongoClient(os.getenv("MONGO_URI"))
+db = client.stock_tracker
+users = db.users
+
+# Flask-Login setup
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+class User(UserMixin):
+    def __init__(self, user_data):
+        self.id = str(user_data['_id'])
+        self.username = user_data['username']
+
+@login_manager.user_loader
+def load_user(user_id):
+    user_data = users.find_one({"_id": ObjectId(user_id)})
+    if not user_data:
+        return None
+    return User(user_data)
 
 # List of Indian Stocks
 INDIAN_STOCKS = [
     "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS",
-    "SBIN.NS", "HINDUNILVR.NS", "LT.NS", "BAJFINANCE.NS"
+    "SBIN.NS", "HINDUNILVR.NS", "LT.NS", "BAJFINANCE.NS", "KOTAKBANK.NS",
+    "BHARTIARTL.NS", "ADANIENT.NS", "HCLTECH.NS", "ITC.NS", "MARUTI.NS",
+    "TITAN.NS", "WIPRO.NS", "AXISBANK.NS", "ULTRACEMCO.NS", "ONGC.NS",
+    "SUNPHARMA.NS", "POWERGRID.NS", "NTPC.NS", "JSWSTEEL.NS", "COALINDIA.NS",
+    "TECHM.NS", "INDUSINDBK.NS", "TATAMOTORS.NS", "GRASIM.NS", "ADANIGREEN.NS"
 ]
+
 
 # Function to fetch stock data
 def get_stock_data():
     stock_data = []
     for stock in INDIAN_STOCKS:
-        ticker = yf.Ticker(stock)
-        stock_info = ticker.history(period="2d")  
+        try:
+            ticker = yf.Ticker(stock)
+            stock_info = ticker.history(period="2d")
 
-        if len(stock_info) < 2:  
-            continue
+            if len(stock_info) < 2:
+                continue
 
-        latest_price = stock_info["Close"].iloc[-1]  
-        prev_price = stock_info["Close"].iloc[-2]   
-        price_change = latest_price - prev_price  
-        percent_change = (price_change / prev_price) * 100  
+            latest_price = stock_info["Close"].iloc[-1]
+            prev_price = stock_info["Close"].iloc[-2]
+            price_change = latest_price - prev_price
+            percent_change = (price_change / prev_price) * 100
 
-        stock_data.append({
-            "symbol": stock.replace(".NS", ""),
-            "price": round(latest_price, 2),
-            "change": round(price_change, 2),
-            "percent": round(percent_change, 2)
-        })
+            stock_data.append({
+                "symbol": stock.replace(".NS", ""),
+                "price": round(latest_price, 2),
+                "change": round(price_change, 2),
+                "percent": round(percent_change, 2)
+            })
+        except Exception as e:
+            print(f"Error fetching data for {stock}: {e}")
     return stock_data
 
-# AI Chatbot Function
-def chatbot_response(message):
-    openai.api_key = OPENAI_API_KEY
+# WebSocket setup
+socketio = SocketIO(app, cors_allowed_origins="*")
 
-    # Convert message to lowercase for better matching
-    message = message.lower()
-
-    # Check if the user is asking about a stock price
-    if "price" in message or "closing price" in message:
-        words = message.split()
-        for stock in INDIAN_STOCKS:  
-            symbol = stock.replace(".NS", "").lower()
-            if symbol in words:
-                try:
-                    ticker = yf.Ticker(stock)
-                    stock_info = ticker.history(period="2d")  
-                    
-                    if len(stock_info) >= 2:
-                        latest_price = round(stock_info["Close"].iloc[-1], 2)
-                        return f"The closing price of {symbol.upper()} today is ₹{latest_price}."
-                    else:
-                        return f"Sorry, I couldn't fetch the latest price for {symbol.upper()}."
-                except:
-                    return "Sorry, there was an issue fetching the stock price."
-
-    # If not a stock price query, use OpenAI's chatbot
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "system", "content": "You are a financial assistant for stock market queries."},
-                      {"role": "user", "content": message}]
-        )
-        return response["choices"][0]["message"]["content"]
-    except Exception as e:
-        return "Sorry, I'm having trouble understanding that."
-
+@socketio.on("message")
+def handle_message(data):
+    send({"username": data["username"], "text": data["text"]}, broadcast=True)
 
 # Routes
 @app.route("/")
+@login_required
 def index():
     return render_template("index.html")
 
 @app.route("/stocks")
+@login_required
 def stocks():
     return jsonify(get_stock_data())
 
-@app.route("/chatbot", methods=["POST"])
-def chatbot():
-    data = request.get_json()
-    user_message = data.get("message", "")
-    bot_reply = chatbot_response(user_message)
-    return jsonify({"reply": bot_reply})
+# ✅ Login Route
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        user_data = users.find_one({"username": username})
+
+        if user_data and check_password_hash(user_data['password'], password):
+            user = User(user_data)
+            login_user(user)
+            flash("Login successful!", "success")
+            return redirect(url_for('index'))
+        else:
+            flash("Invalid username or password", "danger")
+
+    return render_template("login.html")
+
+# ✅ Register Route
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        hashed_password = generate_password_hash(password)
+
+        if users.find_one({"username": username}):
+            flash("Username already exists", "danger")
+        else:
+            users.insert_one({"username": username, "password": hashed_password})
+            flash("Registration successful! Please login.", "success")
+            return redirect(url_for('login'))
+
+    return render_template("register.html")
+
+# ✅ Logout Route
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    flash("You have been logged out.", "success")
+    return redirect(url_for('login'))
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    socketio.run(app, debug=True)

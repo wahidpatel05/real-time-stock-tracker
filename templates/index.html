@@ -1,150 +1,117 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Indian Stock Tracker</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body class="flex h-screen bg-gray-900 text-white">
-    <!-- Sidebar -->
-    <aside
-      class="w-64 bg-black bg-opacity-40 p-5 flex flex-col justify-between"
-    >
-      <div>
-        <h1 class="text-2xl font-bold text-blue-400 mb-6">Stock Dashboard</h1>
-        <nav class="flex flex-col space-y-4">
-          <a
-            href="#"
-            class="px-3 py-2 rounded-md bg-gray-800 transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-lg font-bold"
-            >🏠 Home</a
-          >
-          <a
-            href="#"
-            class="px-3 py-2 rounded-md bg-gray-800 transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-lg"
-            >📊 Top Stocks</a
-          >
-          <a
-            href="#"
-            class="px-3 py-2 rounded-md bg-gray-800 transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-lg"
-            >💹 Market Trends</a
-          >
-        </nav>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Indian Stock Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+</head>
+<body class="flex h-screen bg-gray-900 text-white">
+  <aside class="w-64 bg-black bg-opacity-40 p-5 flex flex-col justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-blue-400 mb-6">Stock Dashboard</h1>
+      <nav class="flex flex-col space-y-4">
+        <a href="#" class="px-3 py-2 rounded-md bg-gray-800 transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-lg">🏠 Home</a>
+        <a href="#" class="px-3 py-2 rounded-md bg-gray-800 transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-lg">📊 Top Stocks</a>
+        <a href="#" class="px-3 py-2 rounded-md bg-gray-800 transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-lg">💹 Market Trends</a>
+      </nav>
+
+      <!-- Group Chat Section in Sidebar -->
+      <div class="mt-8">
+        <h3 class="text-lg font-bold text-blue-400 mb-4">Group Chat</h3>
+        <div id="chat-box" class="h-48 overflow-y-auto bg-gray-800 p-3 rounded-lg mb-4">
+          <!-- Chat messages will appear here -->
+        </div>
+        <div class="flex">
+          <input id="chat-input" type="text" class="flex-1 p-2 rounded bg-gray-700 text-white" placeholder="Type your message..." />
+          <button id="send-button" class="ml-2 px-4 py-2 bg-blue-500 rounded hover:bg-blue-600">Send</button>
+        </div>
       </div>
-
-      <!-- Chatbot Button -->
-      <button
-        onclick="toggleChat()"
-        class="px-3 py-2 bg-purple-500 rounded-md text-center font-bold transition transform hover:scale-105 hover:shadow-lg"
-      >
-        💬 Chat with Bot
-      </button>
-
-      <!-- Login & Signup -->
-      <div class="flex flex-col space-y-3">
-        <a
-          href="#"
-          class="px-3 py-2 bg-green-500 rounded-md text-center font-bold transition transform hover:scale-105 hover:shadow-lg"
-          >Login</a
-        >
-        <a
-          href="#"
-          class="px-3 py-2 bg-blue-500 rounded-md text-center font-bold transition transform hover:scale-105 hover:shadow-lg"
-          >Sign Up</a
-        >
-      </div>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="flex-1 p-8">
-      <h2 class="text-3xl font-bold text-blue-400">Live Indian Stock Prices</h2>
-      <div
-        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6"
-        id="stock-container"
-      ></div>
-    </main>
-
-    <!-- Floating Chatbox -->
-    <div
-      id="chat-container"
-      class="hidden fixed bottom-8 right-8 bg-gray-800 p-4 rounded-lg shadow-xl w-80"
-    >
-      <h3 class="text-lg font-bold text-white mb-2">AI Chatbot</h3>
-      <div
-        id="chat-box"
-        class="h-48 overflow-y-auto bg-gray-700 p-3 rounded"
-      ></div>
-      <input
-        id="chat-input"
-        type="text"
-        class="w-full p-2 rounded mt-2 bg-gray-900 text-white"
-        placeholder="Ask me anything..."
-      />
-      <button
-        onclick="sendMessage()"
-        class="w-full mt-2 bg-blue-500 px-3 py-2 rounded"
-      >
-        Send
-      </button>
     </div>
 
-    <!-- Chatbot Script -->
-    <script>
-      function toggleChat() {
-        document.getElementById("chat-container").classList.toggle("hidden");
-      }
+    <div class="flex flex-col space-y-3">
+      {% if current_user.is_authenticated %}
+      <a href="{{ url_for('logout') }}" class="px-3 py-2 bg-red-500 rounded-md text-center font-bold transition transform hover:scale-105 hover:shadow-lg">Logout</a>
+      {% else %}
+      <a href="{{ url_for('login') }}" class="px-3 py-2 bg-green-500 rounded-md text-center font-bold transition transform hover:scale-105 hover:shadow-lg">Login</a>
+      <a href="{{ url_for('register') }}" class="px-3 py-2 bg-blue-500 rounded-md text-center font-bold transition transform hover:scale-105 hover:shadow-lg">Sign Up</a>
+      {% endif %}
+    </div>
+  </aside>
 
-      async function sendMessage() {
-        const inputField = document.getElementById("chat-input");
-        const message = inputField.value;
-        if (!message) return;
+  <main class="flex-1 p-8">
+    <h2 class="text-3xl font-bold text-blue-400">Live Indian Stock Prices</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6" id="stock-container"></div>
+  </main>
 
-        const chatBox = document.getElementById("chat-box");
-        chatBox.innerHTML += `<p><b>You:</b> ${message}</p>`;
+  <script>
+    const socket = io(); // Initialize Socket.IO connection
 
-        const response = await fetch("/chatbot", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message }),
+    // Handle incoming messages
+    socket.on("message", (data) => {
+      const chatBox = document.getElementById("chat-box");
+      const newMessage = document.createElement("p");
+      newMessage.innerHTML = `<b>${data.username}:</b> ${data.text}`;
+      chatBox.appendChild(newMessage);
+      chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll
+    });
+
+    // Send message
+    document.getElementById("send-button").addEventListener("click", () => {
+      const inputField = document.getElementById("chat-input");
+      const message = inputField.value.trim();
+      if (message) {
+        socket.emit("message", {
+          username: "{{ current_user.username }}",
+          text: message,
         });
-
-        const data = await response.json();
-        chatBox.innerHTML += `<p><b>Bot:</b> ${data.reply}</p>`;
-        inputField.value = "";
-        chatBox.scrollTop = chatBox.scrollHeight;
+        inputField.value = ""; // Clear input
       }
+    });
 
-      async function fetchStockData() {
+    // Fetch stock data
+    async function fetchStockData() {
+  try {
+    const response = await fetch("/stocks");
+    const stocks = await response.json();
+
+    stocks.forEach((stock) => {
+      const stockId = `stock-${stock.symbol}`;
+      let stockCard = document.getElementById(stockId);
+
+      if (!stockCard) {
+        // Create new stock card if it doesn't exist
         const stockContainer = document.getElementById("stock-container");
-        stockContainer.innerHTML = "";
-
-        try {
-          const response = await fetch("/stocks");
-          const stocks = await response.json();
-
-          stocks.forEach((stock) => {
-            const colorClass =
-              stock.change >= 0 ? "text-green-400" : "text-red-400";
-            const stockCard = `
-                        <div class="bg-gray-800 p-6 rounded-xl shadow-lg transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-2xl">
-                            <h3 class="text-xl font-bold">${stock.symbol}</h3>
-                            <p class="mt-2 text-2xl font-semibold">₹${
-                              stock.price
-                            }</p>
-                            <p class="mt-1 text-lg ${colorClass}">${
-              stock.change >= 0 ? "▲" : "▼"
-            } ${stock.change} (${stock.percent}%)</p>
-                        </div>
-                    `;
-            stockContainer.innerHTML += stockCard;
-          });
-        } catch (error) {
-          console.error("Error fetching stock data:", error);
-        }
+        const newCard = document.createElement("div");
+        newCard.id = stockId;
+        newCard.className =
+          "bg-gray-800 p-6 rounded-xl shadow-lg transition transform hover:bg-gray-700 hover:scale-105 hover:shadow-2xl";
+        newCard.innerHTML = `
+          <h3 class="text-xl font-bold">${stock.symbol}</h3>
+          <p class="mt-2 text-2xl font-semibold price">₹${stock.price}</p>
+          <p class="mt-1 text-lg change ${stock.change >= 0 ? "text-green-400" : "text-red-400"}">
+            ${stock.change >= 0 ? "▲" : "▼"} ${stock.change} (${stock.percent}%)
+          </p>
+        `;
+        stockContainer.appendChild(newCard);
+      } else {
+        // Update only price and percentage if card already exists
+        stockCard.querySelector(".price").textContent = `₹${stock.price}`;
+        const changeElem = stockCard.querySelector(".change");
+        changeElem.innerHTML = `${stock.change >= 0 ? "▲" : "▼"} ${stock.change} (${stock.percent}%)`;
+        changeElem.className = `mt-1 text-lg change ${stock.change >= 0 ? "text-green-400" : "text-red-400"}`;
       }
+    });
+  } catch (error) {
+    console.error("Error fetching stock data:", error);
+  }
+}
 
-      fetchStockData();
-      setInterval(fetchStockData, 5000);
-    </script>
-  </body>
+// Fetch stock data every 10 seconds
+fetchStockData();
+setInterval(fetchStockData, 10000);
+
+  </script>
+</body>
 </html>
