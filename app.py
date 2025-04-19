@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
+from flask import Flask, render_template, jsonify, request, redirect, url_for, flash, session
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf.csrf import CSRFProtect
 import yfinance as yf
@@ -8,11 +8,14 @@ from pymongo import MongoClient
 from werkzeug.security import generate_password_hash, check_password_hash
 from bson.objectid import ObjectId
 from flask_socketio import SocketIO, send
+from datetime import datetime
+import re
 
+# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY")
+app.secret_key = os.getenv("SECRET_KEY", "dev_fallback_secret_key")
 
 # Enable CSRF protection
 csrf = CSRFProtect(app)
@@ -27,19 +30,27 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+# User class
 class User(UserMixin):
     def __init__(self, user_data):
-        self.id = str(user_data['_id'])
-        self.username = user_data['username']
+        self.id = str(user_data.get('_id', ''))
+        self.username = user_data.get('email', 'unknown')
+        self.name = user_data.get('name', '')
 
+# User loader
 @login_manager.user_loader
 def load_user(user_id):
-    user_data = users.find_one({"_id": ObjectId(user_id)})
-    if not user_data:
+    try:
+        user_data = users.find_one({"_id": ObjectId(user_id)})
+        print("Fetched user_data:", user_data)  # Debug print
+        if not user_data:
+            return None
+        return User(user_data)
+    except Exception as e:
+        print("Error loading user:", e)
         return None
-    return User(user_data)
 
-# List of Indian Stocks
+# Indian Stocks list
 INDIAN_STOCKS = [
     "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS",
     "SBIN.NS", "HINDUNILVR.NS", "LT.NS", "BAJFINANCE.NS", "KOTAKBANK.NS",
@@ -49,8 +60,27 @@ INDIAN_STOCKS = [
     "TECHM.NS", "INDUSINDBK.NS", "TATAMOTORS.NS", "GRASIM.NS", "ADANIGREEN.NS"
 ]
 
+# Validators
+def validate_password(password):
+    if len(password) < 8:
+        return False
+    if not re.search("[a-z]", password):
+        return False
+    if not re.search("[A-Z]", password):
+        return False
+    if not re.search("[0-9]", password):
+        return False
+    if not re.search("[!@#$%^&*()]", password):
+        return False
+    return True
 
-# Function to fetch stock data
+def validate_aadhar(aadhar):
+    return len(aadhar) == 12 and aadhar.isdigit()
+
+def validate_pan(pan):
+    return len(pan) == 10 and pan[:5].isalpha() and pan[5:9].isdigit() and pan[-1].isalpha()
+
+# Fetch stock data
 def get_stock_data():
     stock_data = []
     for stock in INDIAN_STOCKS:
@@ -94,16 +124,15 @@ def index():
 def stocks():
     return jsonify(get_stock_data())
 
-# ✅ Login Route
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
 
     if request.method == "POST":
-        username = request.form.get("username")
+        email = request.form.get("email")
         password = request.form.get("password")
-        user_data = users.find_one({"username": username})
+        user_data = users.find_one({"email": email})
 
         if user_data and check_password_hash(user_data['password'], password):
             user = User(user_data)
@@ -111,31 +140,86 @@ def login():
             flash("Login successful!", "success")
             return redirect(url_for('index'))
         else:
-            flash("Invalid username or password", "danger")
+            flash("Invalid email or password", "danger")
 
     return render_template("login.html")
 
-# ✅ Register Route
-@app.route("/register", methods=["GET", "POST"])
-def register():
+@app.route("/register/step1", methods=["GET", "POST"])
+def register_step1():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
 
     if request.method == "POST":
-        username = request.form.get("username")
+        email = request.form.get("email")
+        name = request.form.get("name")
         password = request.form.get("password")
-        hashed_password = generate_password_hash(password)
+        confirm_password = request.form.get("confirm_password")
+        dob = request.form.get("dob")
 
-        if users.find_one({"username": username}):
-            flash("Username already exists", "danger")
+        if password != confirm_password:
+            flash("Passwords do not match", "danger")
+        elif not validate_password(password):
+            flash("Password must be at least 8 characters with uppercase, lowercase, number and special character", "danger")
+        elif users.find_one({"email": email}):
+            flash("Email already registered", "danger")
         else:
-            users.insert_one({"username": username, "password": hashed_password})
+            session['reg_data'] = {
+                'email': email,
+                'name': name,
+                'password': password,
+                'dob': dob
+            }
+            return redirect(url_for('register_step2'))
+
+    return render_template("register_step1.html")
+
+@app.route("/register/step2", methods=["GET", "POST"])
+def register_step2():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    if 'reg_data' not in session:
+        return redirect(url_for('register_step1'))
+
+    if request.method == "POST":
+        bank_name = request.form.get("bank_name")
+        account_number = request.form.get("account_number")
+        ifsc_code = request.form.get("ifsc_code")
+        aadhar_number = request.form.get("aadhar_number")
+        pan_number = request.form.get("pan_number")
+
+        if not validate_aadhar(aadhar_number):
+            flash("Invalid Aadhar number (must be 12 digits)", "danger")
+        elif not validate_pan(pan_number):
+            flash("Invalid PAN number (format: ABCDE1234F)", "danger")
+        else:
+            reg_data = session['reg_data']
+
+            user_data = {
+                'email': reg_data['email'],
+                'name': reg_data['name'],
+                'password': generate_password_hash(reg_data['password']),
+                'dob': reg_data['dob'],
+                'bank_details': {
+                    'bank_name': bank_name,
+                    'account_number': account_number,
+                    'ifsc_code': ifsc_code
+                },
+                'kyc_details': {
+                    'aadhar_number': aadhar_number,
+                    'pan_number': pan_number
+                },
+                'created_at': datetime.utcnow()
+            }
+
+            users.insert_one(user_data)
+            session.pop('reg_data', None)
+
             flash("Registration successful! Please login.", "success")
             return redirect(url_for('login'))
 
-    return render_template("register.html")
+    return render_template("register_step2.html")
 
-# ✅ Logout Route
 @app.route("/logout")
 @login_required
 def logout():
@@ -143,5 +227,6 @@ def logout():
     flash("You have been logged out.", "success")
     return redirect(url_for('login'))
 
+# Run app
 if __name__ == "__main__":
     socketio.run(app, debug=True)
